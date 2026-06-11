@@ -15,6 +15,17 @@ Run the **stateless Langfuse app** (web + worker) in Docker while keeping the
 Containers reach host services via `host.docker.internal`, which Docker maps to
 the host gateway. Host services listen on the docker bridge IP `172.17.0.1`.
 
+> 📔 **Already deployed this and hit errors?** See
+> [`DEPLOYMENT_RUNBOOK.md`](DEPLOYMENT_RUNBOOK.md) — a chronological log of every
+> error encountered during a real Amazon Linux bring-up (Postgres `P1001`/`P1010`,
+> ClickHouse install/auth, Redis `ECONNREFUSED`/`EPIPE`/protected-mode) with
+> root causes and fixes, plus a generic debugging recipe.
+>
+> **Service-name note (Amazon Linux):** the Redis package is **`redis6`** (client
+> `redis6-cli`, config `/etc/redis6/redis6.conf`), not `redis`/`redis-server`.
+> Substitute accordingly in the commands below. ClickHouse installed via the
+> standalone binary needs a custom systemd unit (see the runbook).
+
 ## Sizing
 
 | Tier            | vCPU | RAM   | Disk (gp3) | Example EC2   |

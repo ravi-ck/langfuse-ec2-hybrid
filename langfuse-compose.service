@@ -3,12 +3,16 @@
 #   sudo systemctl daemon-reload
 #   sudo systemctl enable --now langfuse-compose.service
 #
-# Adjust WorkingDirectory to wherever you copied docker-compose.yml + .env.
+# Service names are for Amazon Linux (redis6). On Ubuntu/Debian, replace
+# `redis6.service` with `redis-server.service`.
+#
+# Adjust WorkingDirectory to wherever docker-compose.yml + .env live.
 [Unit]
 Description=Langfuse app containers (web + worker)
 Requires=docker.service
-After=docker.service postgresql.service redis-server.service clickhouse-server.service
-Wants=postgresql.service redis-server.service clickhouse-server.service
+# Order after the host data tier so connections don't fail on boot.
+After=docker.service postgresql.service redis6.service clickhouse-server.service
+Wants=postgresql.service redis6.service clickhouse-server.service
 
 [Service]
 Type=oneshot
