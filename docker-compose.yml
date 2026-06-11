@@ -1,0 +1,39 @@
+# Langfuse — app-only Docker Compose (hybrid host deployment)
+#
+# Only the two stateless Langfuse containers run under Docker.
+# Postgres, Redis, and ClickHouse run NATIVELY on the EC2 host (systemd).
+# Blob storage uses real AWS S3 (no MinIO).
+#
+# Containers reach host services via `host.docker.internal`, which Docker
+# maps to the host gateway through the `extra_hosts` entry below.
+# Host services must listen on the docker bridge IP (172.17.0.1) — see README.
+services:
+  langfuse-worker:
+    image: docker.io/langfuse/langfuse-worker:3
+    restart: always
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - 127.0.0.1:3030:3030
+    env_file:
+      - .env
+    # Keep the worker from starving ClickHouse/Postgres on a shared host.
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+
+  langfuse-web:
+    image: docker.io/langfuse/langfuse:3
+    restart: always
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      # Bound to loopback — front with nginx/Caddy on the host for TLS.
+      - 127.0.0.1:3000:3000
+    env_file:
+      - .env
+    deploy:
+      resources:
+        limits:
+          memory: 2g

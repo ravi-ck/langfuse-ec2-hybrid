@@ -1,0 +1,19 @@
+<!-- Install to /etc/clickhouse-server/users.d/langfuse.xml then restart.
+     Creates the `clickhouse` user Langfuse expects (CLICKHOUSE_USER=clickhouse),
+     reachable from the docker bridge subnet. Replace the password to match
+     CLICKHOUSE_PASSWORD in your .env. For production, prefer a password hash
+     (<password_sha256_hex>) over plaintext. -->
+<clickhouse>
+    <users>
+        <clickhouse>
+            <password><CLICKHOUSE_PASSWORD></password>
+            <networks>
+                <ip>172.17.0.0/16</ip>
+                <ip>127.0.0.1</ip>
+            </networks>
+            <profile>default</profile>
+            <quota>default</quota>
+            <access_management>1</access_management>
+        </clickhouse>
+    </users>
+</clickhouse>

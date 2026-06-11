@@ -1,0 +1,11 @@
+<!-- Install to /etc/clickhouse-server/config.d/listen.xml then restart.
+     Opens the HTTP (8123) and native (9000) ports on the docker bridge + loopback.
+     Both are needed: CLICKHOUSE_URL uses 8123, CLICKHOUSE_MIGRATION_URL uses 9000. -->
+<clickhouse>
+    <listen_host>172.17.0.1</listen_host>
+    <listen_host>127.0.0.1</listen_host>
+
+    <!-- Cap memory so ClickHouse can't OOM the app containers on a shared host.
+         ~6 GB suits a 16 GB instance; raise on larger boxes. -->
+    <max_server_memory_usage>6000000000</max_server_memory_usage>
+</clickhouse>
