@@ -348,6 +348,81 @@ Container → host addressing:
 
 ---
 
+## SSO — Google (direct OIDC)
+
+Langfuse auth is OIDC/OAuth (NextAuth) — **no native SAML, no ACS URL** on the
+Langfuse side. When the IdP is Google Workspace, connect Langfuse **directly to
+Google via OIDC**; skip Keycloak and SAML entirely (that detour only adds an ACS
+hop with no benefit). Example uses the deployed URL `https://traces.cloudkeeper.com`.
+
+> Key concept: Langfuse identifies to Google by an OIDC **redirect/callback URI**
+> (`{NEXTAUTH_URL}/api/auth/callback/google`), never a SAML ACS URL. ACS only
+> exists if you deliberately bridge Google→Keycloak over SAML (then the ACS is
+> *Keycloak's* broker endpoint, not Langfuse's).
+
+### 1. Create a Google OAuth client
+In **Google Cloud Console** (console.cloud.google.com) — NOT the Admin console
+"Custom SAML app" screen:
+1. **APIs & Services → OAuth consent screen** → User type **Internal**
+   (restricts to your Workspace, no verification). Fill app name + support emails.
+2. **APIs & Services → Credentials → Create Credentials → OAuth client ID**
+   - Application type: **Web application**
+   - Authorized JavaScript origins: `https://traces.cloudkeeper.com`
+   - Authorized redirect URIs: `https://traces.cloudkeeper.com/api/auth/callback/google`
+   - Copy the **Client ID** and **Client secret**.
+
+> The redirect URI must match **exactly** (scheme, host, path). A trailing slash
+> or `http` vs `https` mismatch is the #1 cause of `redirect_uri_mismatch`.
+
+### 2. Langfuse `.env` (langfuse-web)
+```bash
+NEXTAUTH_URL=https://traces.cloudkeeper.com          # must equal the browser URL exactly
+AUTH_GOOGLE_CLIENT_ID=xxxxxxxx.apps.googleusercontent.com
+AUTH_GOOGLE_CLIENT_SECRET=xxxxxxxx
+AUTH_GOOGLE_ALLOW_ACCOUNT_LINKING=true               # link to same-email password account
+AUTH_GOOGLE_ALLOWED_DOMAINS=cloudkeeper.com          # restrict to your Workspace domain
+```
+
+### 3. Apply & verify
+```bash
+cd ~/langunfused
+docker compose up -d                    # recreates langfuse-web with new env
+docker compose logs -f langfuse-web
+```
+→ a **"Sign in with Google"** button appears at `https://traces.cloudkeeper.com`.
+
+### First-login / access notes
+- New SSO users land with **no organization**. Either pre-create the org and
+  invite by email, or auto-assign:
+  ```bash
+  LANGFUSE_DEFAULT_ORG_ID=<org-id>
+  LANGFUSE_DEFAULT_ORG_ROLE=MEMBER
+  ```
+- **Test SSO before locking down passwords.** Only after Google login works:
+  ```bash
+  AUTH_DISABLE_USERNAME_PASSWORD=true   # force SSO
+  AUTH_DISABLE_SIGNUP=true              # stop open registration
+  ```
+  Keep one working admin until SSO is confirmed, or you can lock yourself out.
+
+### Common errors
+| Symptom | Fix |
+| ------- | --- |
+| `redirect_uri_mismatch` | Google redirect URI ≠ `https://traces.cloudkeeper.com/api/auth/callback/google` exactly |
+| Button missing | creds not loaded — `docker compose exec langfuse-web env \| grep GOOGLE` |
+| Login loops / callback error | `NEXTAUTH_URL` doesn't match the browser origin |
+| `access_denied` | account not in `cloudkeeper.com`, or consent screen Internal + external user |
+
+### Routing through Keycloak instead (only if required)
+If policy forces SSO through Keycloak: Langfuse ↔ Keycloak is **OIDC** (callback
+`.../api/auth/callback/keycloak`, `AUTH_KEYCLOAK_*`, no ACS). Keycloak ↔ Google
+should also be **OIDC** (Keycloak's built-in Google identity provider — no ACS).
+An ACS URL is needed **only** if you bridge Google→Keycloak over SAML, and then it
+is Keycloak's broker endpoint
+`https://<keycloak-host>/realms/<realm>/broker/<alias>/endpoint` — never Langfuse's.
+
+---
+
 ## Generic debugging recipe (for the next service that won't connect)
 
 ```bash
